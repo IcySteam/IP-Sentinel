@@ -15,9 +15,9 @@
 
 只需在你的 Linux 终端（Debian/Ubuntu/CentOS 等）以 root 身份运行以下一行命令，即可开启全自动养护：
 
-\`\`\`bash
+```bash
 bash <(curl -sL https://git.94211762.xyz/hotyue/IP-Sentinel/raw/branch/main/core/install.sh)
-\`\`\`
+```
 
 *安装过程中将引导你选择目标区域（目前支持日本、美国等，规则库持续更新中）。*
 
@@ -25,14 +25,14 @@ bash <(curl -sL https://git.94211762.xyz/hotyue/IP-Sentinel/raw/branch/main/core
 
 本项目采用企业级的“冷热数据分离”架构：
 
-\`\`\`text
+```text
 📦 IP-Sentinel
  ┣ 📂 core/                   # 🧠 核心逻辑控制中心 (引擎、业务模块)
  ┗ 📂 data/                   # 🗂️ 全球数据规则库
     ┣ 📂 regions/             # 🧊 冷数据：各地区 GPS 基准配置 (固化)
     ┣ 📂 keywords/            # 🔥 热数据：动态搜索词库 (OTA 自动更新)
     ┗ 📜 user_agents.txt      # 🔥 热数据：全局真实设备指纹池
-\`\`\`
+```
 
 ## 🤝 参与贡献
 
