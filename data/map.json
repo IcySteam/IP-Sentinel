@@ -85,6 +85,20 @@
           ]
         }
       ]
+    },
+    {
+      "id": "HK",
+      "name": "Hong Kong (香港)",
+      "keyword_file": "kw_HK.txt",
+      "states": [
+        {
+          "id": "Default",
+          "name": "Default State",
+          "cities": [
+            { "id": "HongKong", "name": "Hong Kong (香港)" }
+          ]
+        }
+      ]
     }
   ]
 }
