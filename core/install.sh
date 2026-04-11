@@ -379,9 +379,9 @@ rm -f /tmp/cron_backup
 if [[ -n "$TG_TOKEN" ]] && [[ -n "$CHAT_ID" ]]; then
     echo -e "\n📡 正在向指挥部发送注册暗号..."
 
-# 构造注册暗号 (使用带 [] 装甲的 BIND_IP，防止 Master 端解析错误)
+# 构造注册暗号 (V3.1.3 协议升级: 携带 REGION_CODE 大区标识)
     NODE_NAME=$(hostname | cut -c 1-15)
-    REG_MSG="#REGISTER#|${NODE_NAME}|${BIND_IP}|${AGENT_PORT}"
+    REG_MSG="#REGISTER#|${REGION_CODE}|${NODE_NAME}|${BIND_IP}|${AGENT_PORT}"
     
 # 执行主动推送
     PUSH_RESULT=$(curl -s -X POST "${TG_API_URL}" \
