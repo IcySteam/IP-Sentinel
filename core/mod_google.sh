@@ -88,7 +88,7 @@ for ((i=1; i<=TOTAL_ACTIONS; i++)); do
             ;;
         3) # 地图坐标查询
             CODE=$(curl -${IP_PREF:-4} -m 15 -s -o /dev/null -w "%{http_code}" -A "$SESSION_UA" \
-                 "https://www.google.com/maps/search/${ENCODED_KEY}/@${ACTION_LAT},${ACTION_LON},17z?${LANG_PARAMS}")
+                 "https://www.google.com/maps/search/$${ENCODED_KEY}/@${ACTION_LAT},${ACTION_LON},17z?${LANG_PARAMS}")
             ;;
         4) # 触发移动端系统底层位置检测像素
             CODE=$(curl -${IP_PREF:-4} -m 10 -s -o /dev/null -w "%{http_code}" -A "$SESSION_UA" \
@@ -107,16 +107,33 @@ for ((i=1; i<=TOTAL_ACTIONS; i++)); do
     fi
 done
 
-# --- [结果纠偏自检] ---
-# 去掉所有语言参数，进行一次最干净的直连测试 (强制遵循锚点协议)
+# --- [结果纠偏自检 (V3.1.4 绝对精准提取版)] ---
 FINAL_URL=$(curl -${IP_PREF:-4} -m 15 -s -L -o /dev/null -w "%{url_effective}" https://www.google.com)
 
-if [[ "$FINAL_URL" == *"$VALID_URL_SUFFIX"* ]]; then
-    STATUS="✅ 目标区域达成 ($VALID_URL_SUFFIX)"
-elif [[ "$FINAL_URL" == *"google.com.hk"* ]]; then
-    STATUS="❌ 判定为送中区 (CN/HK)"
+# 核心战术：利用 awk 精准提取最终 URL 的域名部分，再剔除 "www.google." 前缀，得到纯粹的后缀
+# 例如: https://www.google.com.hk/?... -> 提取为 "com.hk"
+ACTUAL_DOMAIN=$(echo "$FINAL_URL" | awk -F/ '{print $3}')
+ACTUAL_SUFFIX=${ACTUAL_DOMAIN#www.google.}
+
+# 1. 优先验证：绝对匹配目标后缀 (彻底杜绝 com 包含于 com.hk 的陷阱)
+if [ "$ACTUAL_SUFFIX" == "$VALID_URL_SUFFIX" ]; then
+    STATUS="✅ 目标区域达成 ($ACTUAL_SUFFIX)"
+
+# 2. 核心拦截：精准捕捉送中特征 (com.hk)
+elif [ "$ACTUAL_SUFFIX" == "com.hk" ]; then
+    if [ "$REGION_CODE" == "HK" ]; then
+        STATUS="✅ 目标区域达成 (HK 专属 com.hk)"
+    else
+        STATUS="❌ 严重漂移！判定为送中区 (实际跳往 $ACTUAL_SUFFIX)"
+    fi
+
+# 3. 宽容处理：遵守 Google 无跳转新规 (严格限定必须是纯粹的 com，绝不能是 com.xx)
+elif [ "$ACTUAL_SUFFIX" == "com" ]; then
+    STATUS="🌐 保持通用主站 (留在 .com，受 Google 无跳转新规影响)"
+
+# 4. 跨区漂移：所有预判之外的后缀，全部视为异常
 else
-    STATUS="⚠️ 其他分站跳板 ($FINAL_URL)"
+    STATUS="⚠️ 跨区跳板漂移 (当前实际归属: $ACTUAL_SUFFIX)"
 fi
 
 log "$MODULE_NAME" "SCORE" "自检结论: $STATUS"
