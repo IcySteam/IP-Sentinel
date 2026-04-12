@@ -51,8 +51,29 @@ get_random_coord() {
 # [v3.0.2修复] 直接读取系统已锁定的锚点 IP，彻底杜绝“获取IP失败”及隧道偏移
 CURRENT_IP="${BIND_IP:-Unknown}"
 
-# 会话锁定：单次执行内使用固定的浏览器指纹
-SESSION_UA=${UA_POOL[$RANDOM % ${#UA_POOL[@]}]}
+# -----------------------------------------------------------
+# [V3.1.5] 哈希锚定法 (Hash-Seeded Persona) 
+# 利用 IP 算力固定 3 个永久化专属指纹，破除僵尸网络同质化特征
+# -----------------------------------------------------------
+TOTAL_UA=${#UA_POOL[@]}
+if [ "$TOTAL_UA" -gt 0 ]; then
+    # 1. 以本地锁定的公网 IP 为种子，计算固定不变的 CRC32 哈希值
+    SEED=$(echo -n "$CURRENT_IP" | cksum | awk '{print $1}')
+    
+    # 2. 利用确定的种子和质数乘数，在全球 4000 的库中计算出本机的 3 个绝对专属坐标
+    IDX1=$(( SEED % TOTAL_UA ))
+    IDX2=$(( (SEED * 17) % TOTAL_UA ))
+    IDX3=$(( (SEED * 31) % TOTAL_UA ))
+    
+    # 3. 将绝对坐标映射为该节点的“专属设备库”
+    MY_UA_POOL=("${UA_POOL[$IDX1]}" "${UA_POOL[$IDX2]}" "${UA_POOL[$IDX3]}")
+    
+    # 4. 本次会话从这 3 台专属设备中随机挑选 1 台进行模拟
+    SESSION_UA=${MY_UA_POOL[$RANDOM % 3]}
+else
+    # 兜底容错机制
+    SESSION_UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+fi
 # 位置锁定：在基准点(比如东京新宿)附近 3 公里内随机生成本次上网的“固定咖啡馆”坐标
 SESSION_BASE_LAT=$(get_random_coord $BASE_LAT 270)
 SESSION_BASE_LON=$(get_random_coord $BASE_LON 270)
