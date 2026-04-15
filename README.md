@@ -46,7 +46,7 @@
  ┃  ┣ 📂 regions/             # 🧊 冷数据：按 [国家/省州/城市] 深度细分的 LBS 锚点
  ┃  ┣ 📂 keywords/            # 🔥 热数据：按国家归类的动态搜索词库 (OTA 自动更新)
  ┃  ┗ 📜 user_agents.txt      # 🔥 热数据：由兵工厂每月锻造的绝对坐标专属设备库
- ┣ 📜 version.txt             # 🚩 全球版本信标：SSOT 单一事实来源锚点 (v3.5.0)
+ ┣ 📜 version.txt             # 🚩 双端版本信标：Agent/Master 独立解耦的 KV 环境配置 (v3.5.1)
  ┗ 📂 telemetry/              # 👁️‍🗨️ 玻璃房计划：Cloudflare Workers 透明计数器网关源码
 ```
 
