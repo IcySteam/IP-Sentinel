@@ -12,10 +12,10 @@ REPO_RAW_URL="https://raw.githubusercontent.com/hotyue/IP-Sentinel/main"
 INSTALL_DIR="/opt/ip_sentinel"
 CONFIG_FILE="${INSTALL_DIR}/config.conf"
 
-# [核心: 动态获取全局版本控制锚点 (Single Source of Truth)]
-TARGET_VERSION=$(curl -s -m 3 "${REPO_RAW_URL}/version.txt" | tr -d '[:space:]')
+# [核心: 动态提取 Agent 专属版本锚点 (KV 解析法)]
+TARGET_VERSION=$(curl -s -m 3 "${REPO_RAW_URL}/version.txt" | grep "^AGENT_VERSION=" | cut -d'=' -f2 | tr -d '[:space:]')
 # 🛡️ 兜底防线：如果网络波动拉取失败，启用内置的安全兜底版本
-TARGET_VERSION=${TARGET_VERSION:-"3.5.0"}
+TARGET_VERSION=${TARGET_VERSION:-"3.5.1"}
 
 # 轻量级版本号比对函数 (例如: version_lt "3.3.1" "3.4.0" 返回 true)
 version_lt() {

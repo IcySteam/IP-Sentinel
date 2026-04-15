@@ -152,8 +152,8 @@ while true; do
             # ==========================================
             case "$TEXT" in
                 "/start"|"/menu")
-                    # [v3.4.0 核心] 抓取云端最新版本
-                    REMOTE_VER=$(curl -s -m 2 "${REPO_RAW_URL}/version.txt" | tr -d '[:space:]')
+                    # [核心: 抓取云端最新 Master 版本 (KV 解析法)]
+                    REMOTE_VER=$(curl -s -m 2 "${REPO_RAW_URL}/version.txt" | grep "^MASTER_VERSION=" | cut -d'=' -f2 | tr -d '[:space:]')
                     VER_INFO="当前版本: \`v${MASTER_VERSION}\`"
                     
                     if [ -n "$REMOTE_VER" ] && [ "$REMOTE_VER" != "$MASTER_VERSION" ]; then

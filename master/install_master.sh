@@ -10,8 +10,10 @@ REPO_RAW_URL="https://raw.githubusercontent.com/hotyue/IP-Sentinel/main"
 # 临时改为私库地址用于测试
 # REPO_RAW_URL="https://git.94211762.xyz/hotyue/IP-Sentinel/raw/branch/main"
 
-# [核心: 动态获取全局版本控制锚点 (Single Source of Truth)]
-TARGET_VERSION=$(curl -s -m 3 "${REPO_RAW_URL}/version.txt" | tr -d '[:space:]')
+# [核心: 动态提取 Master 专属版本锚点 (KV 解析法)]
+# 通过 grep 定位 MASTER_VERSION 行，再通过 cut 提取等号右侧的值
+TARGET_VERSION=$(curl -s -m 3 "${REPO_RAW_URL}/version.txt" | grep "^MASTER_VERSION=" | cut -d'=' -f2 | tr -d '[:space:]')
+
 # 🛡️ 兜底防线：如果网络波动拉取失败，启用内置的安全兜底版本
 TARGET_VERSION=${TARGET_VERSION:-"3.5.0"}
 

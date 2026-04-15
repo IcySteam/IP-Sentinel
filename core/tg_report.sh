@@ -165,9 +165,9 @@ fi
 # 从配置文件提取当前本地版本，若无则默认为未知
 LOCAL_VER="${AGENT_VERSION:-未知}"
 
-# 极轻量级探针: 抓取 GitHub 云端的 version.txt (超时 3 秒)
+# 极轻量级探针: 抓取 GitHub 云端的 version.txt (超时 3 秒，KV解析法)
 REPO_RAW_URL="https://raw.githubusercontent.com/hotyue/IP-Sentinel/main"
-REMOTE_VER=$(curl -s -m 3 "${REPO_RAW_URL}/version.txt" | tr -d '[:space:]')
+REMOTE_VER=$(curl -s -m 3 "${REPO_RAW_URL}/version.txt" | grep "^AGENT_VERSION=" | cut -d'=' -f2 | tr -d '[:space:]')
 
 # 构建底部引擎状态块
 MSG="$MSG
