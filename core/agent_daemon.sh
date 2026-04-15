@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==========================================================
-# 脚本名称: agent_daemon.sh (受控节点 Webhook 守护进程 v3.4.0 版本锚点版)
+# 脚本名称: agent_daemon.sh (受控节点 Webhook 守护进程 - 动态锚点版)
 # 核心功能: 智能防打扰注册、进程自检、模块级路由分发(403拦截)
 # ==========================================================
 
@@ -223,7 +223,8 @@ class AgentHandler(http.server.BaseHTTPRequestHandler):
                 req = urllib.request.Request(
                     config.get('TG_API_URL', ''), 
                     data=data,
-                    headers={'User-Agent': 'IP-Sentinel-Agent/3.0.4'}
+                    # [动态化] 彻底消灭硬编码，使用运行态版本号
+                    headers={'User-Agent': f'IP-Sentinel-Agent/{local_ver}'}
                 )
                 urllib.request.urlopen(req, timeout=10)
                 
