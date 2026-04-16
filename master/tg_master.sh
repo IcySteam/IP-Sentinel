@@ -348,7 +348,9 @@ while true; do
                         if [ "$RESPONSE" == "FAILED" ]; then
                             send_msg "$CHAT_ID" "❌ 指令下发超时！请检查节点连通性。"
                         elif [[ "$RESPONSE" == *"Action Accepted"* ]]; then
-                            send_msg "$CHAT_ID" "✅ 通讯成功！节点别名已下发: \`$NEW_ALIAS\`\n*(注: 节点随后将自动向中枢报备刷新面板)*"
+                            # [v3.5.2 极致丝滑] 确认 Agent 修改成功后，Master 立即自动同步本地 SQLite 数据库！
+                            db_exec "UPDATE nodes SET node_alias='$NEW_ALIAS' WHERE chat_id='$CHAT_ID' AND node_name='$TARGET_NODE';"
+                            send_msg "$CHAT_ID" "✅ 通讯成功！节点别名已下发: \`$NEW_ALIAS\`\n*(司令部档案已自动刷新，雷达面板已同步)*"
                         else
                             # 增加输出 RESPONSE 调试信息，排查任何拦截死因
                             send_msg "$CHAT_ID" "⚠️ 节点拒绝了请求，请确保 Agent 已更新至 v3.5.2\n(回传信息: \`${RESPONSE}\`)"
