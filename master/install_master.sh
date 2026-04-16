@@ -31,6 +31,9 @@ echo "  1) 🚀 部署 Master 控制中枢"
 echo "  2) 🗑️ 一键卸载 Master 中枢"
 read -p "请输入选择 [1-2] (默认1): " ACTION_CHOICE
 
+# [v3.5.2 修复] 防止用户直接回车导致变量为空，从而漏过下方的平滑升级判定被误删档
+ACTION_CHOICE=${ACTION_CHOICE:-1}
+
 if [ "$ACTION_CHOICE" == "2" ]; then
     echo -e "\n⏳ 正在拉取卸载程序..."
     # [新增逻辑] 使用上面定义的 REPO_RAW_URL 动态拉取卸载脚本，执行后自动销毁临时文件
