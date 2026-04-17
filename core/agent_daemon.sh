@@ -310,21 +310,23 @@ class AgentHandler(http.server.BaseHTTPRequestHandler):
                     self.wfile.write(b"403 Forbidden: OTA Disabled\n")
                     return
                 
-                # 1. 瞬间返回成功状态，并彻底结束当前的 HTTP 处理函数，关闭 TCP 连接
+                # 1. 精确斩断 HTTP 请求：声明长度并主动 Close，让 curl 瞬间拿回执退出 (0毫秒延迟)
+                resp_msg = b"Action Accepted: trigger_upgrade\n"
                 self.send_response(200)
                 self.send_header("Content-type", "text/plain")
+                self.send_header("Content-Length", str(len(resp_msg)))
+                self.send_header("Connection", "close")
                 self.end_headers()
-                self.wfile.write(b"Action Accepted: trigger_upgrade\n")
+                self.wfile.write(resp_msg)
                 
-                # 2. 引入 Python 独立守护线程，完全剥离套接字继承
-                import threading
-                def do_ota():
-                    time.sleep(2) # 等待 2 秒，确保前台 HTTP 响应已完全送达 Master
-                    # 将变量直接前置注入 bash 进程，这是最坚不可摧的无状态执行方案
-                    os.system("curl -sL https://raw.githubusercontent.com/hotyue/IP-Sentinel/main/core/install.sh | SILENT_OTA=true bash >/dev/null 2>&1")
-                
-                # 启动后台幽灵线程，主干立刻 return
-                threading.Thread(target=do_ota, daemon=True).start()
+                # 2. 真正的 Unix 级金蝉脱壳术
+                # close_fds=True 是绝对核心：彻底禁止子进程继承网络套接字，根除死锁！
+                cmd = "sleep 2 && export SILENT_OTA=true && curl -sL https://raw.githubusercontent.com/hotyue/IP-Sentinel/main/core/install.sh | bash"
+                subprocess.Popen(["bash", "-c", cmd], 
+                                 start_new_session=True, 
+                                 close_fds=True, 
+                                 stdout=subprocess.DEVNULL, 
+                                 stderr=subprocess.DEVNULL)
 
             except Exception as e:
                 self.send_response(500)
