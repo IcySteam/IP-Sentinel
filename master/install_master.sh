@@ -95,13 +95,34 @@ fi
 echo -e "\033[32m✅ 旧进程已肃清！\033[0m"
 # =======================================================================
 
-# 1. 环境依赖安装
-echo -e "\n[1/4] 安装核心依赖 (curl, jq, sqlite3)..."
-if [ -f /etc/debian_version ]; then
+# 1. 环境依赖智能安装 (v3.6.0 兼容性升级: 支持 Alpine, Arch 等)
+echo -e "\n[1/4] 正在探测并安装核心依赖 (curl, jq, sqlite3, cron, procps)..."
+
+if command -v apt-get >/dev/null 2>&1; then
+    # Debian / Ubuntu 系列
     apt-get update -y >/dev/null 2>&1
-    apt-get install -y curl jq sqlite3 procps >/dev/null 2>&1
-elif [ -f /etc/redhat-release ]; then
-    yum install -y curl jq sqlite >/dev/null 2>&1
+    apt-get install -y curl jq sqlite3 cron procps >/dev/null 2>&1
+    systemctl enable cron >/dev/null 2>&1 && systemctl start cron >/dev/null 2>&1
+elif command -v yum >/dev/null 2>&1 || command -v dnf >/dev/null 2>&1; then
+    # RHEL / CentOS / AlmaLinux 系列
+    PKG_MGR="yum"
+    command -v dnf >/dev/null 2>&1 && PKG_MGR="dnf"
+    $PKG_MGR install -y curl jq sqlite cronie procps-ng >/dev/null 2>&1
+    systemctl enable crond >/dev/null 2>&1 && systemctl start crond >/dev/null 2>&1
+elif command -v apk >/dev/null 2>&1; then
+    # Alpine Linux 系列
+    echo "Alpine 探测到系统类型为 Alpine Linux，正在执行轻量级安装..."
+    apk add --no-cache curl jq sqlite dcron procps bash >/dev/null 2>&1
+    mkdir -p /var/spool/cron/crontabs
+    rc-update add crond default >/dev/null 2>&1
+    service crond start >/dev/null 2>&1
+elif command -v pacman >/dev/null 2>&1; then
+    # Arch Linux 系列
+    pacman -Sy --noconfirm curl jq sqlite cronie procps-ng >/dev/null 2>&1
+    mkdir -p /root/.cache/crontab 2>/dev/null
+    systemctl enable cronie >/dev/null 2>&1 && systemctl start cronie >/dev/null 2>&1
+else
+    echo -e "\033[33m⚠️ 未知系统，请确保已手动安装 curl, jq, sqlite3, crontab 和 pgrep。\033[0m"
 fi
 
 mkdir -p "$MASTER_DIR"
@@ -137,6 +158,7 @@ CREATE TABLE IF NOT EXISTS nodes (
     node_alias TEXT,
     enable_google TEXT DEFAULT 'true',
     enable_trust TEXT DEFAULT 'true',
+    enable_ota TEXT DEFAULT 'false',
     PRIMARY KEY(chat_id, node_name)
 );
 EOF
@@ -153,10 +175,10 @@ echo -e "\n[4/4] 部署 TG 调度守护进程..."
 curl -sL "${REPO_RAW_URL}/master/tg_master.sh" -o "${MASTER_DIR}/tg_master.sh"
 chmod +x "${MASTER_DIR}/tg_master.sh"
 
-# 写入看门狗 Cron
-crontab -l 2>/dev/null | grep -v "tg_master.sh" > /tmp/cron_master
+# 写入看门狗 Cron (容错版)
+crontab -l 2>/dev/null | grep -v "tg_master.sh" > /tmp/cron_master || true
 echo "* * * * * pgrep -f tg_master.sh >/dev/null || nohup bash ${MASTER_DIR}/tg_master.sh >/dev/null 2>&1 &" >> /tmp/cron_master
-crontab /tmp/cron_master
+[ -f /tmp/cron_master ] && crontab /tmp/cron_master 2>/dev/null
 rm -f /tmp/cron_master
 
 # 立刻启动
