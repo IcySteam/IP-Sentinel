@@ -22,22 +22,76 @@ version_lt() {
     test "$(printf '%s\n' "$1" "$2" | sort -V | head -n 1)" = "$1" && test "$1" != "$2"
 }
 
-echo "========================================================"
-echo "      🛡️ 欢迎使用 IP-Sentinel (边缘节点 Edge Agent)"
-echo "               当前安装包版本: v${TARGET_VERSION}"
-echo "========================================================"
+# 1. 依赖检查与智能安装 (v3.5.4 兼容性升级: 支持 Alpine, Arch 及更完善的依赖链)
+echo -e "\n[1/7] 正在探测并安装基础环境依赖 (curl, jq, cron, procps, python3)..."
 
-# 1. 依赖检查与安装 (新增 python3 用于轻量级 Webhook 服务)
-echo -e "\n[1/7] 正在安装必要环境依赖 (curl, jq, cron, procps, python3)..."
-if [ -f /etc/debian_version ]; then
-    apt-get update -y >/dev/null 2>&1
-    apt-get install -y curl jq cron procps python3 >/dev/null 2>&1
-elif [ -f /etc/redhat-release ]; then
-    yum install -y curl jq cronie procps-ng python3 >/dev/null 2>&1
-    systemctl enable crond && systemctl start crond
-else
-    echo "⚠️ 未知系统，请确保已手动安装 curl, jq, pgrep 和 python3"
+# 定义必须检测的核心命令
+REQUIRED_CMDS=("curl" "jq" "crontab" "pgrep" "python3")
+MISSING_CMDS=()
+
+# 基础探测：预检查缺失的命令
+for cmd in "${REQUIRED_CMDS[@]}"; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        MISSING_CMDS+=("$cmd")
+    fi
+done
+
+# 如果有缺失，执行智能安装逻辑
+if [ ${#MISSING_CMDS[@]} -gt 0 ]; then
+    echo "⏳ 发现缺失依赖: ${MISSING_CMDS[*]}，正在尝试自动补齐..."
+    
+    # 嗅探包管理器
+    if command -v apt-get >/dev/null 2>&1; then
+        # Debian / Ubuntu 系列
+        apt-get update -y >/dev/null 2>&1
+        apt-get install -y curl jq cron procps python3 >/dev/null 2>&1
+        systemctl enable cron >/dev/null 2>&1 && systemctl start cron >/dev/null 2>&1
+        
+    elif command -v yum >/dev/null 2>&1 || command -v dnf >/dev/null 2>&1; then
+        # RHEL / CentOS / AlmaLinux 系列
+        PKG_MGR="yum"
+        command -v dnf >/dev/null 2>&1 && PKG_MGR="dnf"
+        $PKG_MGR install -y curl jq cronie procps-ng python3 >/dev/null 2>&1
+        systemctl enable crond >/dev/null 2>&1 && systemctl start crond >/dev/null 2>&1
+        
+    elif command -v apk >/dev/null 2>&1; then
+        # [核心修复 Issue #21] Alpine Linux 系列
+        echo "Alpine 探测到系统类型为 Alpine Linux，正在执行轻量级安装..."
+        apk add --no-cache curl jq dcron procps python3 bash >/dev/null 2>&1
+        # Alpine 下必须手动创建 cron spool 目录并启动 crond
+        mkdir -p /var/spool/cron/crontabs
+        rc-update add crond default >/dev/null 2>&1
+        service crond start >/dev/null 2>&1
+        
+    elif command -v pacman >/dev/null 2>&1; then
+        # [核心修复 Issue #250] Arch Linux 系列
+        pacman -Sy --noconfirm curl jq cronie procps-ng python >/dev/null 2>&1
+        # Arch 下某些 cronie 实现可能缺少 /root/.cache 权限，做个兼容保障
+        mkdir -p /root/.cache/crontab 2>/dev/null
+        systemctl enable cronie >/dev/null 2>&1 && systemctl start cronie >/dev/null 2>&1
+        
+    else
+        # 无法识别的系统：退出并给出清晰的引导信息
+        echo -e "\033[31m❌ 自动安装失败：系统未知的包管理器。\033[0m"
+        echo -e "\033[33m⚠️ 请根据您的操作系统，手动执行以下安装命令后重新运行本脚本：\033[0m"
+        echo -e "  Debian/Ubuntu: \033[36mapt-get update && apt-get install -y curl jq cron procps python3\033[0m"
+        echo -e "  CentOS/RHEL:   \033[36myum install -y curl jq cronie procps-ng python3\033[0m"
+        echo -e "  Alpine Linux:  \033[36mapk add --no-cache curl jq dcron procps python3 bash\033[0m"
+        echo -e "  Arch Linux:    \033[36mpacman -Sy curl jq cronie procps-ng python\033[0m"
+        exit 1
+    fi
+    
+    # 安装后二次复检
+    for cmd in "${REQUIRED_CMDS[@]}"; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            echo -e "\033[31m❌ 致命错误：核心命令 '$cmd' 仍未找到！\033[0m"
+            echo -e "这通常是因为您的系统源配置错误或缺失基础组件库导致。"
+            echo -e "请手动修复您的包管理器源，或联系 VPS 供应商重新格式化系统。"
+            exit 1
+        fi
+    done
 fi
+echo -e "\033[32m✅ 基础环境检测通过。\033[0m"
 
 # 2. 交互式引导与动态地图解析 (v3.0 全球网络)
 echo -e "\n[2/7] 正在连线云端，拉取全球节点地图..."
@@ -210,30 +264,40 @@ if [ "$UPGRADE_MODE" == "false" ]; then
     ENABLE_TRUST="true"
 
     # 4. 接入 Master 中枢配置
-    echo -e "\n[4/7] 是否接入 Master 司令部？(需要配置与主控相同的 TG 机器人) (y/n)"
+    echo -e "\n[4/7] 是否接入 Master 司令部进行远程联控？ (y/n)"
     read -p "请输入选择 [y/n] (默认n): " TG_CHOICE
     TG_TOKEN=""
     CHAT_ID=""
     AGENT_PORT="9527"
     if [[ "$TG_CHOICE" =~ ^[Yy]$ ]]; then
-        echo -e "\n\033[33m💡 提示：您可以选择使用自己的机器人，或者直接回车使用官方公共机器人。\033[0m"
-        echo -e "\033[33m⚠️  注意：若使用官方机器人，请务必先在 TG 中关注 @OmniBeacon_bot 并发送 /start\033[0m"
+        echo -e "\n请选择中枢接入模式:"
+        echo "  1) ☁️ 官方公共网关 (@OmniBeacon_bot，免配置直接用)"
+        echo "  2) 🛡️ 私有独立中枢 (需输入您自建的 Bot Token)"
+        read -p "请输入选择 [1-2] (默认1): " MASTER_TYPE
+        MASTER_TYPE=${MASTER_TYPE:-1}
         
-        read -p "请输入您的 Telegram Bot Token (回车使用官方默认): " USER_TOKEN
-        
-        if [ -z "$USER_TOKEN" ]; then
+        if [ "$MASTER_TYPE" == "1" ]; then
             TG_TOKEN="OFFICIAL_GATEWAY_MODE" 
             TG_API_URL="https://omni-gateway.samanthaestime296.workers.dev" 
             echo -e "\033[32m✅ 已自动连接官方安全网关 (@OmniBeacon_bot)。\033[0m"
-            echo -e "\033[33m👉 请确保您已关注官方机器人并发送过 /start，否则将无法接收消息。\033[0m"
+            echo -e "\033[33m👉 请确保您已在 TG 中关注官方机器人并发送过 /start，否则将无法接收消息。\033[0m"
         else
+            echo -e "\n\033[36m📘 私有 Bot 创建教程: https://blog.iot-architect.com/engineering-practice/create-private-telegram-bot-via-botfather/\033[0m"
+            read -p "请输入您的私有 Telegram Bot Token: " USER_TOKEN
+            
+            # 🛡️ 核心防误触修复：拦截空回车或粘贴换行导致的跳过 Bug
+            while [ -z "$USER_TOKEN" ]; do
+                read -p "⚠️ Token 不能为空，请重新输入您的 Bot Token: " USER_TOKEN
+            done
+            
             TG_TOKEN="$USER_TOKEN"
             TG_API_URL="https://api.telegram.org/bot${TG_TOKEN}/sendMessage"
             echo -e "\033[32m✅ 已记录您的私有机器人 Token。\033[0m"
         fi
 
-        echo -e "\033[33m💡 提示：如果您不知道自己的 Chat ID，可以关注 @userinfobot 获取。\033[0m"
-        read -p "请输入你的 Chat ID (与主控一致): " CHAT_ID
+        echo -e "\n\033[33m💡 提示：如果您不知道下方自己的 Chat ID 是什么，可以关注 @userinfobot 获取。\033[0m"
+        echo -e "\033[36m📘 查看图文教程: https://blog.iot-architect.com/engineering-practice/get-telegram-personal-id-via-userinfobot/\033[0m"
+        read -p "请输入你的 Chat ID (必须准确，否则无法联控): " CHAT_ID
         
         # ================== [v3.0.3 变更: 智能随机高位端口生成系统] ==================
         echo -e "\n\033[36m[4.2/7] 正在构建 Webhook 安全通信隧道...\033[0m"
