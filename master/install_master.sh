@@ -135,6 +135,8 @@ CREATE TABLE IF NOT EXISTS nodes (
     last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
     region TEXT DEFAULT 'UNKNOWN',
     node_alias TEXT,
+    enable_google TEXT DEFAULT 'true',
+    enable_trust TEXT DEFAULT 'true',
     PRIMARY KEY(chat_id, node_name)
 );
 EOF
