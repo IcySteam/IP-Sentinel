@@ -20,7 +20,7 @@ AGENT_PORT=${AGENT_PORT:-9527}
 # [v3.5.2 核心] 载入不可变主键与可变展示名 (双轨身份)
 if [ -z "$NODE_NAME" ]; then
     IP_HASH=$(echo "${PUBLIC_IP:-127.0.0.1}" | md5sum | cut -c 1-4 | tr 'a-z' 'A-Z')
-    NODE_NAME="$(hostname | cut -c 1-10)-${IP_HASH}"
+    NODE_NAME="$(hostname | tr -cd 'a-zA-Z0-9' | cut -c 1-10)-${IP_HASH}"
 fi
 NODE_ALIAS="${NODE_ALIAS:-$NODE_NAME}"
 
@@ -256,26 +256,27 @@ class AgentHandler(http.server.BaseHTTPRequestHandler):
                 safe_alias = re.sub(r'[^a-zA-Z0-9\-\u4e00-\u9fa5]', '', decoded_alias)[:20]
                 
                 if safe_alias:
-                    # 3. 强容错读写 config.conf
+                    # 3. 强容错读写 config.conf (引入 fcntl 排他锁与 r+ 模式防并发清空)
                     config_path = '/opt/ip_sentinel/config.conf'
-                    with open(config_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    import fcntl
+                    with open(config_path, 'r+', encoding='utf-8', errors='ignore') as f:
+                        fcntl.flock(f, fcntl.LOCK_EX)
                         lines = f.readlines()
-                    
-                    alias_found = False
-                    config_dict = {}
-                    for i, line in enumerate(lines):
-                        if line.startswith('NODE_ALIAS='):
-                            lines[i] = f'NODE_ALIAS="{safe_alias}"\n'
-                            alias_found = True
-                        elif '=' in line and not line.startswith('#'):
-                            key, val = line.strip().split('=', 1)
-                            config_dict[key] = val.strip('"\'')
-                    
-                    if not alias_found:
-                        lines.append(f'NODE_ALIAS="{safe_alias}"\n')
                         
-                    with open(config_path, 'w', encoding='utf-8') as f:
+                        alias_found = False
+                        for i, line in enumerate(lines):
+                            if line.startswith('NODE_ALIAS='):
+                                lines[i] = f'NODE_ALIAS="{safe_alias}"\n'
+                                alias_found = True
+                                break
+                                
+                        if not alias_found:
+                            lines.append(f'NODE_ALIAS="{safe_alias}"\n')
+                            
+                        f.seek(0)
                         f.writelines(lines)
+                        f.truncate()
+                        fcntl.flock(f, fcntl.LOCK_UN)
                         
                     # [v3.5.2 极致丝滑] 移除向 TG 推送冗余报文的逻辑，直接向 Master 回执成功状态即可
                     self.send_response(200)
@@ -308,21 +309,26 @@ class AgentHandler(http.server.BaseHTTPRequestHandler):
             
             try:
                 config_path = '/opt/ip_sentinel/config.conf'
-                with open(config_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    lines = f.readlines()
+                import fcntl
                 
-                found = False
-                for i, line in enumerate(lines):
-                    if line.startswith(config_key):
-                        lines[i] = f'{config_key}"{target_state}"\n'
-                        found = True
-                        break
-                        
-                if not found:
-                    lines.append(f'{config_key}"{target_state}"\n')
+                with open(config_path, 'r+', encoding='utf-8', errors='ignore') as f:
+                    fcntl.flock(f, fcntl.LOCK_EX)
+                    lines = f.readlines()
                     
-                with open(config_path, 'w', encoding='utf-8') as f:
+                    found = False
+                    for i, line in enumerate(lines):
+                        if line.startswith(config_key):
+                            lines[i] = f'{config_key}"{target_state}"\n'
+                            found = True
+                            break
+                            
+                    if not found:
+                        lines.append(f'{config_key}"{target_state}"\n')
+                        
+                    f.seek(0)
                     f.writelines(lines)
+                    f.truncate()
+                    fcntl.flock(f, fcntl.LOCK_UN)
                 
                 self.send_response(200)
                 self.send_header("Content-type", "text/plain")
