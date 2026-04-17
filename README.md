@@ -66,7 +66,7 @@ bash <(curl -sL https://raw.githubusercontent.com/hotyue/IP-Sentinel/main/core/i
 ### 🔸 模式 B：官方公共模式 (最简体验)
 适合不想折腾、只想快速体验养护效果的新兵。
 
-- 关注机器人：在 TG 中关注官方安全网关 @OmniBeacon_bot 并发送 /start。
+- 关注机器人：在 TG 中关注官方安全网关 [@OmniBeacon_bot](https://t.me/OmniBeacon_bot) 并发送 /start。
 
 - 部署 Agent：在目标 VPS 上执行以下指令，安装过程中选择官方公共网关，并输入您的 Chat ID：
 
