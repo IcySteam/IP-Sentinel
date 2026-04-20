@@ -375,17 +375,10 @@ class AgentHandler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(b"Action Accepted: trigger_ota\n")
                 
                 # 挂起异步升级进程 (注入 SILENT_OTA 旁路变量跳过所有 read -p 交互)
-                import shutil
-                repo_url = "https://raw.githubusercontent.com/hotyue/IP-Sentinel/main"
-                ota_cmd = f"export SILENT_OTA='true'; curl -sL {repo_url}/core/install.sh | bash > /opt/ip_sentinel/logs/ota_upgrade.log 2>&1"
-                
-                # [修复] 逃逸 Systemd Cgroup，防止 Agent 在升级时被同归于尽机制误杀
-                if shutil.which("systemd-run"):
-                    full_cmd = f"systemd-run --quiet --no-block bash -c \"{ota_cmd}\""
-                else:
-                    full_cmd = f"nohup bash -c \"{ota_cmd}\" &"
-                    
-                subprocess.Popen(full_cmd, shell=True)
+                # 注意：这里我们写死拉取 dev-v3.6.0 分支的安装脚本进行覆盖测试，未来正式版上线时会改回 main
+                repo_url = "https://raw.githubusercontent.com/hotyue/IP-Sentinel/dev-v3.6.0"
+                ota_cmd = f"export SILENT_OTA='true'; curl -sL {repo_url}/core/install.sh | bash > /opt/ip_sentinel/logs/ota_upgrade.log 2>&1 &"
+                subprocess.Popen(['bash', '-c', ota_cmd])
                 
             except Exception as e:
                 self.send_response(500)
@@ -401,27 +394,21 @@ class AgentHandler(http.server.BaseHTTPRequestHandler):
 
 import socket
 # ================== [v3.0.3 变更: 引入多线程模型抵抗 Slowloris 攻击] ==================
-class ThreadedServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+class ThreadedDualStackServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True # 开启端口复用，防止热重启时端口冲突
+    address_family = socket.AF_INET6 if socket.has_ipv6 else socket.AF_INET
 
 try:
-    # 1. 优先尝试监听双栈/IPv6 (大多数 Linux 默认支持 IPv4 映射接入)
-    ThreadedServer.address_family = socket.AF_INET6
-    httpd = ThreadedServer(("::", PORT), AgentHandler)
-except Exception:
-    # 2. [核心修复 Issue #23] 若系统内核已禁用 IPv6，抛弃报错，智能回退至纯 IPv4 监听
-    ThreadedServer.address_family = socket.AF_INET
-    httpd = ThreadedServer(("0.0.0.0", PORT), AgentHandler)
-
-try:
-    httpd.serve_forever()
+    bind_addr = "::" if socket.has_ipv6 else ""
+    with ThreadedDualStackServer((bind_addr, PORT), AgentHandler) as httpd:
+        httpd.serve_forever()
 except Exception as e:
     sys.exit(1)
 # ====================================================================================
 EOF
 
-# --- [重点升级 3: 移交系统级守护进程接管] ---
-echo "🚀 [Agent] 正在启动 Webhook 监听服务 (端口: $AGENT_PORT)..."
-# 去掉 nohup 和 &，使用 exec 让 Python 进程直接替换当前 Bash 进程，前台阻塞运行
-# 这样 Systemd 才能真正捕捉到 Python 进程的生命周期，永不误杀！
-exec python3 "${INSTALL_DIR}/core/webhook.py" "$AGENT_PORT"
+# --- [重点升级 3: 真正的静默后台启动] ---
+echo "🚀 [Agent] 正在后台启动 Webhook 监听服务 (端口: $AGENT_PORT)..."
+nohup python3 "${INSTALL_DIR}/core/webhook.py" "$AGENT_PORT" > /dev/null 2>&1 &
+disown 2>/dev/null || true
+echo "✅ [Agent] 守护进程启动完毕，可安全关闭终端。"

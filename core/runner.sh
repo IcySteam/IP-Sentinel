@@ -31,14 +31,10 @@ log() {
     # [v3.4.0 核心] 提取当前配置中的版本锚点
     local local_ver="${AGENT_VERSION:-未知}"
     
+    # 保证日志目录存在
     mkdir -p "${INSTALL_DIR}/logs"
-    local core_msg=$(printf "[v%-5s] [%-5s] [%-7s] [%s] %s" "$local_ver" "$level" "$module" "$REGION_CODE" "$msg")
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $core_msg" >> "$LOG_FILE"
-    if command -v logger >/dev/null 2>&1; then
-        logger -t ip-sentinel "$core_msg"
-    else
-        echo "$core_msg"
-    fi
+    # 日志格式注入 [版本号] 追踪标识
+    printf "[$(date '+%Y-%m-%d %H:%M:%S')] [v%-5s] [%-5s] [%-7s] [%s] %s\n" "$local_ver" "$level" "$module" "$REGION_CODE" "$msg" >> "$LOG_FILE"
 }
 export -f log
 export CONFIG_FILE INSTALL_DIR

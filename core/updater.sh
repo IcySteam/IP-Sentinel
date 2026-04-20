@@ -26,13 +26,8 @@ log() {
     local local_ver="${AGENT_VERSION:-未知}"
     
     mkdir -p "${INSTALL_DIR}/logs"
-    local core_msg=$(printf "[v%-5s] [%-5s] [%-7s] [%s] %s" "$local_ver" "$2" "$1" "$REGION_CODE" "$3")
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $core_msg" >> "$LOG_FILE"
-    if command -v logger >/dev/null 2>&1; then
-        logger -t ip-sentinel "$core_msg"
-    else
-        echo "$core_msg"
-    fi
+    # 日志格式注入 [版本号] 追踪标识
+    printf "[$(date '+%Y-%m-%d %H:%M:%S')] [v%-5s] [%-5s] [%-7s] [%s] %s\n" "$local_ver" "$2" "$1" "$REGION_CODE" "$3" >> "$LOG_FILE"
 }
 
 log "Updater" "INFO " "========== 触发后台静默 OTA 热数据更新 =========="
