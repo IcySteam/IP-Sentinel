@@ -105,6 +105,10 @@ fi
 
 # ================== [v3.2.2 优化: 安装前环境纯净度清理与数据保护] ==================
 echo -e "\n⏳ 正在清理旧版 Master 守护进程..."
+# [新增] 优雅停止 Systemd 服务，防止代码替换时引发无限复活风暴
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl stop ip-sentinel-master.service >/dev/null 2>&1 || true
+fi
 pkill -9 -f "tg_master.sh" >/dev/null 2>&1 || true
 
 if [ "$UPGRADE_MODE" == "true" ]; then

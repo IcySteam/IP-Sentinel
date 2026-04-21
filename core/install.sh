@@ -164,6 +164,11 @@ fi
 
 # ================== [v3.1.1/v3.2.2 优化: 安装前环境纯净度清理] ==================
 echo -e "\n⏳ 正在清理旧版守护进程与冗余任务..."
+# [新增] 优雅停止 Systemd 服务，防止代码替换时引发无限复活风暴
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl stop ip-sentinel-runner.timer ip-sentinel-updater.timer ip-sentinel-report.timer ip-sentinel-agent-daemon.service >/dev/null 2>&1 || true
+fi
+
 # 1. 强制超度可能存活的 Webhook 及各类看门狗进程，释放端口
 pkill -9 -f "webhook.py" >/dev/null 2>&1 || true
 pkill -9 -f "agent_daemon.sh" >/dev/null 2>&1 || true
