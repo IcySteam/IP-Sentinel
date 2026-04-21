@@ -12,6 +12,8 @@
 
 ## ✨ 核心极客特性 (Core Architecture)
 
+- ⚡ **无损高并发引擎 (WAL Concurrency)**：司令部 SQLite 数据库全面激活 `WAL` (Write-Ahead Logging) 模式与毫秒级排队削峰算法。即使您同时对 500 台边缘节点发起全军总攻，也能完美规避 `database is locked` 与 Telegram `429` 频率拦截，实现 100% 战报送达。
+- 🪶 **抽脂级极简部署 (Zero-Bloat Native)**：全栈剔除 `pip`、`flask` 等臃肿第三方依赖，完全基于 Python3 原生标准库运行。安装底层强制注入 `--no-install-recommends` 防捆绑参数。无论是 128MB 内存的极简 NAT 小鸡，还是 Alpine/Arch Linux 特种系统，均可如丝般顺滑运行。
 - 🎛️ **扁平化指挥矩阵 (Flat Command Matrix)**：[v3.6.1 重构] 引入扁平化 L0-L3 四级战区降维视图与双轨身份制。深度定制 Inline Keyboard 逃生舱交互，支持在统一哨兵终端进行原位丝滑重绘 (In-place UI Edit)，实现毫秒级模块热启停与日志抓取，彻底告别刷屏烦恼。
 - 🔄 **全栈零信任 OTA 引擎 (Zero-Trust OTA Upgrade)**：首创双端物理熔断机制。长官可通过私有中枢，一键向全舰队下发静默热重载指令；更支持**「司令部金蝉脱壳」**，中枢大脑可在此面板自我抛出幽灵进程进行免交互直装覆盖，实现真正的全栈去 SSH 化运维。
 - 🛡️ **SSOT 溯源与热更新装甲 (Smooth Upgrade Engine)**：全系脚本彻底消灭硬编码，部署时动态抓取云端版本信标。自带状态机嗅探逻辑与防撞甲探测，即使是手动在终端运行安装，也仅需回车瞬间完成配置继承、数据同步与无损换代。
@@ -45,6 +47,7 @@
 ```
 
 ## 🚀 极速部署 (Quick Start)
+> 🛡️ **跨平台装甲支持**：Debian / Ubuntu / CentOS / RHEL / Alpine Linux / Arch Linux
 系统现提供两种接入模式，请根据您的战术需求选择：
 
 ### 🔹 模式 A：私有独立模式 (全自主、强烈推荐)
