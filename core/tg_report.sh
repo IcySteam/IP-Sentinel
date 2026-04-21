@@ -31,11 +31,17 @@ CURL_BIND_OPT=""
 DYNAMIC_IP_PREF="-${IP_PREF:-4}"
 
 if [[ -n "$BIND_IP" && "$BIND_IP" =~ ^[0-9a-fA-F:\.]+$ ]]; then
-    CURL_BIND_OPT="--interface $BIND_IP"
-    if [[ "$BIND_IP" == *":"* ]]; then
-        DYNAMIC_IP_PREF="-6"
-    elif [[ "$BIND_IP" == *"."* ]]; then
-        DYNAMIC_IP_PREF="-4"
+    # [v3.6.3 容错层补丁] 探测物理网卡/虚拟 IP 存活状态
+    RAW_BIND_IP=$(echo "$BIND_IP" | tr -d '[]')
+    if ! ip addr show 2>/dev/null | grep -qw "$RAW_BIND_IP"; then
+        CURL_BIND_OPT=""
+    else
+        CURL_BIND_OPT="--interface $BIND_IP"
+        if [[ "$BIND_IP" == *":"* ]]; then
+            DYNAMIC_IP_PREF="-6"
+        elif [[ "$BIND_IP" == *"."* ]]; then
+            DYNAMIC_IP_PREF="-4"
+        fi
     fi
 fi
 

@@ -42,7 +42,12 @@ CURL_CMD="curl -${IP_PREF:-4} -sL"
 if [ -n "$BIND_IP" ]; then
     # curl 的 --interface 参数不支持带方括号的 IPv6 地址，必须强行脱壳
     RAW_BIND_IP=$(echo "$BIND_IP" | tr -d '[]')
-    CURL_CMD="$CURL_CMD --interface $RAW_BIND_IP"
+    # [v3.6.3 容错层补丁] 探测网卡存活状态，防止 IP 漂移导致永久断网
+    if ! ip addr show 2>/dev/null | grep -qw "$RAW_BIND_IP"; then
+        log "Updater" "WARN " "检测到绑定的出口 IP ($RAW_BIND_IP) 已丢失，自动退回默认路由！"
+    else
+        CURL_CMD="$CURL_CMD --interface $RAW_BIND_IP"
+    fi
 fi
 
 # ==========================================================

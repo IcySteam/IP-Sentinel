@@ -99,14 +99,21 @@ CURL_BIND_OPT=""
 DYNAMIC_IP_PREF="-${IP_PREF:-4}" # 默认提取用户配置
 
 if [[ -n "$BIND_IP" && "$BIND_IP" =~ ^[0-9a-fA-F:\.]+$ ]]; then
-    CURL_BIND_OPT="--interface $BIND_IP"
-    # 智能探测：带冒号为 V6，带点号为 V4
-    if [[ "$BIND_IP" == *":"* ]]; then
-        DYNAMIC_IP_PREF="-6"
-        log_msg "INFO " "底层路由锁定: 绑定 IPv6 出口及协议 ($BIND_IP)"
-    elif [[ "$BIND_IP" == *"."* ]]; then
-        DYNAMIC_IP_PREF="-4"
-        log_msg "INFO " "底层路由锁定: 绑定 IPv4 出口及协议 ($BIND_IP)"
+    # [v3.6.3 容错层补丁] 探测物理网卡/虚拟 IP 存活状态
+    RAW_BIND_IP=$(echo "$BIND_IP" | tr -d '[]')
+    if ! ip addr show 2>/dev/null | grep -qw "$RAW_BIND_IP"; then
+        log_msg "WARN " "检测到配置的出口 IP ($RAW_BIND_IP) 已丢失，自动降级为系统默认路由出网！"
+        CURL_BIND_OPT=""
+    else
+        CURL_BIND_OPT="--interface $BIND_IP"
+        # 智能探测：带冒号为 V6，带点号为 V4
+        if [[ "$BIND_IP" == *":"* ]]; then
+            DYNAMIC_IP_PREF="-6"
+            log_msg "INFO " "底层路由锁定: 绑定 IPv6 出口及协议 ($BIND_IP)"
+        elif [[ "$BIND_IP" == *"."* ]]; then
+            DYNAMIC_IP_PREF="-4"
+            log_msg "INFO " "底层路由锁定: 绑定 IPv4 出口及协议 ($BIND_IP)"
+        fi
     fi
 fi
 
