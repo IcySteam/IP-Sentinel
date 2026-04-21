@@ -45,9 +45,9 @@ edit_ui() {
         -d "{\"chat_id\":\"$1\",\"message_id\":\"$2\",\"text\":\"$3\",\"parse_mode\":\"Markdown\",\"reply_markup\":{\"inline_keyboard\":$4}}" > /dev/null
 }
 
-# 数据库执行函数 (v3.6.3 终极静默版: 采用 -cmd 预载模式，杜绝 Stdout 泄露)
+# 数据库执行函数 (v3.6.3 终极静默版: 动用 .timeout 点命令防泄露)
 db_exec() {
-    sqlite3 -cmd "PRAGMA busy_timeout=5000;" "$DB_FILE" "$1"
+    printf ".timeout 5000\n%s\n" "$1" | sqlite3 "$DB_FILE"
 }
 
 # ================== [v3.0.4 核心: 动态 HMAC 签名生成器] ==================
