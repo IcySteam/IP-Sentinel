@@ -25,7 +25,7 @@ RSS_FEEDS = {
     "ES": ["https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada"],
     "JP": ["https://news.yahoo.co.jp/rss/topics/top-picks.xml"],
     "HK": ["https://hk.news.yahoo.com/rss/hong-kong"],
-    "TW": ["https://tw.news.yahoo.com/rss/taiwan"],
+    "TW": ["https://news.google.com/rss?hl=zh-TW&gl=TW&ceid=TW:zh-Hant"],
     "KR": ["https://www.yonhapnewstv.co.kr/category/news/headline/feed/"],
     "SG": ["https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml"],
     "NL": ["https://feeds.nos.nl/nosnieuwsalgemeen"],
